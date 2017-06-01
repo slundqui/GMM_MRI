@@ -1,0 +1,10 @@
+data/001_4.bmp
+data/007_3.bmp
+data/012_2.bmp
+data/015_3.bmp
+data/017_3.bmp
+data/018_3.bmp
+data/025_2.bmp
+data/096_2.bmp
+data/100_2.bmp
+data/110_2.bmp

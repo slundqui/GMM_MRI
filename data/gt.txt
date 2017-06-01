@@ -1,0 +1,10 @@
+data/001_4_seg.bmp
+data/007_3_seg.bmp
+data/012_2_seg.bmp
+data/015_3_seg.bmp
+data/017_3_seg.bmp
+data/018_3_seg.bmp
+data/025_2_seg.bmp
+data/096_2_seg.bmp
+data/100_2_seg.bmp
+data/110_2_seg.bmp
