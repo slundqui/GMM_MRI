@@ -73,17 +73,26 @@ yellowIdx = np.nonzero(threeWayAnd((gtImgs[:, :, :, 0] > 1-epsilon),    #r chann
                                    (gtImgs[:, :, :, 2] < epsilon)))     #b channel low
 gt[yellowIdx] = [0, 0, 0, 1, 0]
 
-#Find distractor channel
+#Find distractor channel, i.e., pixel is distractor iff it's not one of above classes
 gt[:, :, :, 4] = 1 - np.sum(gt[:, :, :, 0:4], axis=3)
 
-##Sanity check
+##Visualization sanity check
 #plt.figure()
 #plt.imshow(gtImgs[0, :, :, :])
 #plt.figure()
 #plt.imshow(gt[0, :, :, 4])
 #plt.show()
-#
-#pdb.set_trace()
+
+#Sanity check, last index should be onehot
+assert(np.sum(gt) == numImg*ny*nx)
+
+
+pdb.set_trace()
+
+
+
+
+
 
 
 
