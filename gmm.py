@@ -86,6 +86,21 @@ gt[:, :, :, 4] = 1 - np.sum(gt[:, :, :, 0:4], axis=3)
 #Sanity check, last index should be onehot
 assert(np.sum(gt) == numImg*ny*nx)
 
+#Change gt matrix into binary
+gt = gt.astype(np.bool)
+
+#Initialize means of each class with k-means, where k is number of classes
+#TODO is this what I'm supposed to do for initialization? What are we clusting over?
+means = np.zeros([5])
+stds = np.zeros([5])
+for c in range(5):
+    #Get indices of class
+    classIdx = np.nonzero(gt[:, :, :, c])
+    #Get pixel values from images
+    classPixVals = inputImgs[classIdx]
+    #Calculate mean/std and store
+    means[c] = np.mean(classPixVals)
+    stds[c] = np.std(classPixVals)
 
 pdb.set_trace()
 
