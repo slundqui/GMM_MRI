@@ -19,7 +19,7 @@ def loadImages(listOfFn):
     for fn in listOfFn:
         outList.append(imread(fn))
     #Change into multidimension np array
-    outArr = np.array(outList).astype(np.float32)
+    outArr = np.array(outList).astype(np.float64)
     #Change range to be between 0 and 1
     outArr = outArr / 255.0
     return outArr
@@ -95,4 +95,14 @@ def getImages(inputList, gtList):
     trainGt = gt[:7, :, :, :]
     testImg = inputImgs[7:, :, :]
     testGt = gt[7:, :, :, :]
+
+    ##Normalize images
+    ##Note we normalize per image
+    #trainMean = np.mean(trainImg, axis=(1, 2))
+    #trainStd = np.std(trainImg, axis=(1, 2))
+    #testMean = np.mean(testImg, axis=(1, 2))
+    #testStd = np.std(testImg, axis=(1, 2))
+    #trainImg = (trainImg - trainMean[:, np.newaxis, np.newaxis])/trainStd[:, np.newaxis, np.newaxis]
+    #testImg = (testImg - testMean[:, np.newaxis, np.newaxis])/testStd[:, np.newaxis, np.newaxis]
+
     return (trainImg, trainGt, testImg, testGt)

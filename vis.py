@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 def calcGtImg(gt):
     (ny, nx, k) = gt.shape
     #Handle only 5 clusters for now
-    assert(k == 5)
+    assert(k == 4)
     outImg = np.zeros((ny, nx, 3))
-    kColors = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [0, 0, 0]]
+    kColors = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0]]
 
     for kk in range(k):
         labelIdx = np.nonzero(gt[:, :, kk] == 1)

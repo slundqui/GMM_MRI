@@ -14,22 +14,23 @@ clusterOutName = "data/kmeans_cluster.npy"
 patchSize = (5, 5)
 
 (trainData, trainGt, testData, testGt) = getImages(inputList, gtList)
-(numTrain, ny, nx, k) = trainGt.shape
+(numTrain, ny, nx, drop) = trainGt.shape
+k = 4
 
 
 #Build tensorflow graph
 sess = tf.InteractiveSession()
 xImage = tf.placeholder(tf.float32, shape=[None, ny, nx, 1])
-gtImage = tf.placeholder(tf.float32, shape=[None, ny, nx, k])
+gtImage = tf.placeholder(tf.float32, shape=[None, ny, nx, 5])
 
 #Extract patches from image
 xData = tf.extract_image_patches(xImage, [1, patchSize[0], patchSize[1], 1], [1, 1, 1, 1], [1, 1, 1, 1], "SAME")
 #Linearize both data and gt in batch, x, y dimension
 xData = tf.reshape(xData, [-1, patchSize[0]*patchSize[1]])
-gtData = tf.reshape(gtImage, [-1, k])
+gtData = tf.reshape(gtImage, [-1, k+1])
 
 #Remove distractor class when training
-dataIdxs = tf.where(tf.not_equal(gtData[:, k-1], 0))
+dataIdxs = tf.where(tf.not_equal(gtData[:, -1], 0))
 valid_xData = tf.gather(xData, dataIdxs)[:, 0, :]
 valid_gtData = tf.gather(gtData, dataIdxs)[:, 0, :]
 
@@ -89,7 +90,7 @@ np.save(clusterOutName, np_clusters)
 
 #Visualize
 plt.figure()
-visualizeGt(trainGt[0, :, :, :], "gtImage")
+visualizeGt(trainGt[0, :, :, :-1], "gtImage")
 
 estImage = sess.run(full_responsibility, feed_dict=feed_dict)
 estImage = np.reshape(estImage, [numTrain, ny, nx, k])
