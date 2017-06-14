@@ -1,11 +1,86 @@
 \documentclass[11pt]{article}
 \usepackage{amsmath,amssymb,amsthm}
-%\usepackage[margin=1in]{geometry}
-\newcommand{\encode}[1]{\langle #1 \rangle}
 
-\title{\bf Derivation of Semi-Supervised Learning using Expectation Maximization and Gaussian Mixture Model} \\[2ex]
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+\title{\bf Derivation of Semi-Supervised Learning using Expectation Maximization and Gaussian Mixture Model \\[2ex]}
 \author{Sheng Lundquist}
+\date{}
 
 \begin{document}
 \maketitle
+
+\section{Notation}
+\begin{align}
+N_u &=&& \text{Number of unsupervised samples}\\
+N_s &=&& \text{Number of supervised samples}\\
+N &=&& N_u + N_s\\
+K &=&& \text{Number of clusters}\\
+x &=&& \{x_{1_s}, x_{2_s}, ... x_{N_s}, x_{1_u}, x_{2_u}, ... x_{N_u}\}\\
+s &=&& \{s_{1}, s_{2}, ... s_{K}\} \\ 
+  & &&\text{ where each s is a one-hot vector for the correct class}\\
+r &=&& \{r_{1}, r_{2}, ... r_{K}\}\\
+\Theta &=&& \{\pi, \mu, \Sigma\}\\
+\pi &=&& \{\pi_{1}, \pi_{2}, ... \pi_{K}\}\\
+\mu &=&& \{\mu_{1}, \mu_{2}, ... \mu_{K}\}\\
+\Sigma &=&& \{\Sigma_{1}, \Sigma_{2}, ... \Sigma_{K}\}\\
+S_k &=&& \sum_i^{N_s}{s_{ik}}\\
+R_k &=&& \sum_i^{N_s}{r_{ik}}
+\end{align}
+
+\section{Objective}
+\begin{align}
+L(\Theta) &= \sum_{i}^{N_s}\ln f(x_i, y_i) + \sum_{i}^{N_u}\ln f(x_i)\\
+\ln f(x_i, y_i) &= \sum_k^K s_k \ln \pi_k \mathcal{N}(x | \mu_k, \Sigma_k)\\
+\ln f(x_i) &= \sum_k^K r_k \ln \pi_k \mathcal{N}(x | \mu_k, \Sigma_k)
+\end{align}
+
+\section{E step}
+\begin{align}
+P(y_i=k, x | \Theta) &= \pi_k \mathcal{N}(x, \mu_k, \Sigma_k)\\
+P(y_i=k| x, \Theta) &= r_k = \frac{\pi_k \mathcal{N}(x | \mu_k, \Sigma_k)}{\sum_j^K \pi_j \mathcal{N}(x | \mu_j, \Sigma_j)}
+\end{align}
+
+\section{M step}
+\subsection{M step for $\pi$}
+\begin{align}
+\argmax_\pi L(\Theta) &=&& \sum_i^{N_s} \sum_k^{K} s_{ik} \ln(\pi_k \mathcal{N}(x_i | \mu_k, \Sigma_k)) + \\
+ & &&\sum_i^{N_u} \sum_k^{K} r_{ik} \ln(\pi_k \mathcal{N}(x_i | \mu_k, \Sigma_k))\\
+&=&& \sum_i^{N_s}(\sum_k^K s_{ik} \ln \pi_k + \sum_k^K s_{ik} \ln \mathcal{N}(x_i | \mu_k, \Sigma_k)) +\\
+& && \sum_i^{N_u}(\sum_k^K r_{ik} \ln \pi_k + \sum_k^K r_{ik} \ln \mathcal{N}(x_i | \mu_k, \Sigma_k))\\
+&=&& \sum_k^K S_k\ln\pi_k + \sum_k^K R_k\ln\pi_k + C\\
+&=&& (N) (\sum_k^K \frac{S_k}{N} \ln \pi_k + \sum_k^K \frac{R_k}{N} \ln \pi_k)\\
+&=&& (N) \sum_k^K (\frac{S_k + R_k}{N}) \ln \pi_k\\
+&\leq&& (N) \sum_k^K (\frac{S_k + R_k}{N}) \ln \frac{S_k+R_k}{N}\\
+\pi_k &=&& \frac{S_k+R_k}{N}
+\end{align}
+
+\subsection{M step for $\mu$}
+\begin{align}
+\frac{dL}{d\mu_k} &=&& \sum_i^{N_s} s_{ik} \frac{d}{d\mu_k}(\ln \mathcal{N}(x_i|\mu_k, \Sigma_k)) + \\
+& &&\sum_i^{N_u} r_{ik} \frac{d}{d\mu_k}(\ln \mathcal{N}(x_i|\mu_k, \Sigma_k))\\
+\ln \mathcal{N}(x | \mu, \Sigma) &=&& -\frac{d}{2}\ln 2\pi - \frac{1}{2}\ln |\Sigma| - \frac{1}{2}(x-\mu)^T\Sigma^{-1}(x-\mu)\\
+\frac{d}{d\mu} &=&& \Sigma^{-1}(x-\mu)\\
+\frac{dL}{d\mu_k} &=&& \sum_i^{N_s} s_{ik} \Sigma_k^{-1}(x_i-\mu_k) + \sum_i^{N_u} r_{ik} \Sigma_k^{-1}(x_i-\mu_k)\\
+0 &=&& \sum_i^{N_s} s_{ik}\Sigma_k^{-1}(x_i-\mu_k) + \sum_i^{N_u} r_{ik}\Sigma_k^{-1}(x_i-\mu_k)\\
+0 &=&& \sum_i^{N_s} s_{ik}(x_i-\mu_k)              + \sum_i^{N_u} r_{ik}(x_i-\mu_k)\\
+0 &=&& \sum_i^{N_s} s_{ik}(x_i-\mu_k)              + \sum_i^{N_u} r_{ik}(x_i-\mu_k)\\
+0 &=&& \sum_i^{N_s} s_{ik}x_i - \sum_i^{N_s}s_{ik}\mu_k + \sum_i^{N_u} r_{ik}x_i - \sum_i^{N_u}r_{ik}\mu_k\\
+\mu_k(S_k + R_k) &=&& \sum_i^{N_s}s_{ik}x_i + \sum_i^{N_u}r_{ik}x_i\\
+\mu_k &=&& \frac{\sum_i^{N_s}s_{ik}x_i + \sum_i^{N_u}r_{ik}x_i}{S_k + R_k}
+\end{align}
+
+\subsection{M step for $\Sigma$}
+\begin{align}
+\frac{dL}{d\Sigma_k^{-1}} &=&& \frac{\Sigma_k}{2}S_k - \frac{1}{2}\sum_i^{N_s}s_{ik}(x_i-\mu_k)(x_i-\mu_k)^T + \\
+& &&\frac{\Sigma_k}{2}R_k - \frac{1}{2}\sum_i^{N_u}r_{ik}(x_i-\mu_k)(x_i-\mu_k)^T\\
+0 &=&& \frac{\Sigma_k}{2}S_k - \frac{1}{2}\sum_i^{N_s}s_{ik}(x_i-\mu_k)(x_i-\mu_k)^T +\\
+& &&\frac{\Sigma_k}{2}R_k - \frac{1}{2}\sum_i^{N_u}r_{ik}(x_i-\mu_k)(x_i-\mu_k)^T\\
+\frac{\Sigma_k}{2}(S_k + R_k) &=&& \frac{1}{2}(\sum_i^{N_s}s_{ik}(x_i-\mu_k)(x_i-\mu_k)^T + \sum_i^{N_u}r_{ik}(x_i-\mu_k)(x_i-\mu_k)^T)\\
+\Sigma_k &=&& \frac{\sum_i^{N_s}s_{ik}(x_i-\mu_k)(x_i-\mu_k)^T + \sum_i^{N_u}r_{ik}(x_i-\mu_k)(x_i-\mu_k)^T}{S_k+R_k}
+\end{align}
+
+
+\end{document}
 
