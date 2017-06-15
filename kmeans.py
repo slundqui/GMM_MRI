@@ -14,7 +14,6 @@ clusterOutName = "data/kmeans_cluster.npy"
 patchSize = (5, 5)
 k = 4
 
-
 #Get images
 (trainData, trainGt, testData, testGt) = data.getImages(inputList, gtList)
 #Run on all avaliable data
