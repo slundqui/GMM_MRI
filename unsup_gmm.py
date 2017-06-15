@@ -93,8 +93,6 @@ visualizeGt(testGt[-1, :, :, :4], "gtImage")
 
 plt.show()
 
-pdb.set_trace()
-
 
 
 

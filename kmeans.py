@@ -1,32 +1,31 @@
 import numpy as np
 from scipy.ndimage import imread
 import matplotlib.pyplot as plt
-from data import getImages
-from vis import visualizeGt
+import data
+import util
 import tensorflow as tf
 import pdb
 
+#Parameters
 inputList = "data/data.txt"
 gtList = "data/gt.txt"
 clusterOutName = "data/kmeans_cluster.npy"
-
 #y by x
 patchSize = (5, 5)
-
-(trainData, trainGt, testData, testGt) = getImages(inputList, gtList)
 k = 4
 
+
+#Get images
+(trainData, trainGt, testData, testGt) = data.getImages(inputList, gtList)
 #Run on all avaliable data
 trainData = np.concatenate((trainData, testData), axis=0)
-(numTotal, ny, nx) = trainData.shape
 
-#showImg = trainData[-1, :, :, np.newaxis]
-#showImg = np.tile(showImg, [1, 1, 3])
-#plt.imshow(showImg)
-#plt.show()
+#Get shapes
+(numTotal, ny, nx) = trainData.shape
 
 #Build tensorflow graph
 sess = tf.InteractiveSession()
+#Input placeholders
 xImage = tf.placeholder(tf.float32, shape=[None, ny, nx, 1])
 gtImage = tf.placeholder(tf.float32, shape=[None, ny, nx, 5])
 
@@ -37,6 +36,7 @@ xData = tf.reshape(xData, [-1, patchSize[0]*patchSize[1]])
 gtData = tf.reshape(gtImage, [-1, k+1])
 
 #Remove distractor class when training
+#I.e., apply only to datapoints with ground truth
 dataIdxs = tf.where(tf.not_equal(gtData[:, -1], 0))
 valid_xData = tf.gather(xData, dataIdxs)[:, 0, :]
 valid_gtData = tf.gather(gtData, dataIdxs)[:, 0, :]
@@ -44,20 +44,19 @@ valid_gtData = tf.gather(gtData, dataIdxs)[:, 0, :]
 #Initialize cluster centers
 cluster = tf.Variable(tf.random_normal([k, patchSize[0]*patchSize[1]], .5, 1e-3))
 
-#E step (cluster assignment based on l2 norm)
+#E step (cluster assignment based on l2 distance)
 assignments = tf.reduce_sum(tf.square(valid_xData[:, tf.newaxis, :] - cluster[tf.newaxis, :, :]), axis=2)
 #Hard assign
 assignIdx = tf.argmin(assignments, axis=1)
-#One hot vector based on assignIdx
+#One hot vector based on argmin
 responsibility = tf.one_hot(assignIdx, k)
 
-#Applies E step to all data
+#Applies E step to all data for visualization
 full_assignments = tf.reduce_sum(tf.square(xData[:, tf.newaxis, :] - cluster[tf.newaxis, :, :]), axis=2)
 #Hard assign
 full_assignIdx = tf.argmin(full_assignments, axis=1)
 #One hot vector based on assignIdx
 full_responsibility = tf.one_hot(full_assignIdx, k)
-
 
 #M step (update cluster)
 weightedAvg = responsibility[:, :, tf.newaxis] * valid_xData[:, tf.newaxis, :]
@@ -70,47 +69,38 @@ stepEM = tf.assign(cluster, new_cluster)
 #Initialize variables
 sess.run(tf.global_variables_initializer())
 
+#Build np input data structure for running graph
 feed_dict = {xImage: trainData[:, :, :, np.newaxis], gtImage: trainGt}
 
-
+#Run
+#Get old assignment for stopping criteria
+oldAssignment = sess.run(assignIdx, feed_dict=feed_dict)
 loop = True
 iteration = 0
-
-#Get old assignment
-oldAssignment = sess.run(assignIdx, feed_dict=feed_dict)
-
 while loop:
     print("Iteration" + str(iteration))
     iteration += 1
-    #Run em
+    #Run EM
     sess.run(stepEM, feed_dict=feed_dict)
     #Get new assignment
     newAssignment = sess.run(assignIdx, feed_dict=feed_dict)
+    #Check for stopping condition, i.e., no new assignments
     if(np.sum(np.abs(newAssignment - oldAssignment)) == 0):
         loop = False
     oldAssignment = newAssignment
 
-#Save cluster assignments into numpy array
+#Evaluate tf nodes for cluster assignments into numpy array
 np_clusters = sess.run(cluster)
+#Save cluster as .npy file
 np.save(clusterOutName, np_clusters)
-
 
 #Visualize
 plt.figure()
-visualizeGt(testGt[-1, :, :, :-1], "gtImage")
+util.visualizeGt(testGt[-1, :, :, :-1], "gtImage")
 
 estImage = sess.run(full_responsibility, feed_dict=feed_dict)
 estImage = np.reshape(estImage, [numTotal, ny, nx, k])
 plt.figure()
-visualizeGt(estImage[-1, :, :, :], "estImage")
+util.visualizeGt(estImage[-1, :, :, :], "estImage")
 
 plt.show()
-
-pdb.set_trace()
-
-
-
-
-
-
-

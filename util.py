@@ -20,3 +20,5 @@ def visualizeGt(gt, name):
     outImg = calcGtImg(gt)
     plt.imshow(outImg)
     plt.title(name)
+
+#def tfGetData(

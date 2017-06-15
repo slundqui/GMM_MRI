@@ -30,12 +30,6 @@ unsupGtData = np.zeros((numTest, ny, nx, 5))
 unsupGtData[:, :, :, 4] = 1
 trainGt = np.concatenate((trainGt, unsupGtData), axis=0)
 
-#Use only first image for now
-#trainData = trainData[0, :, :]
-#trainData = trainData[np.newaxis, :, :]
-#trainGt = trainGt[0, :, :, :]
-#trainGt = trainGt[np.newaxis, :, :, :]
-
 #Use tensorflow to get training samples from image
 #Build tensorflow graph
 sess = tf.InteractiveSession()
