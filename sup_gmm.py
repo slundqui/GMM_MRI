@@ -1,48 +1,38 @@
 import numpy as np
-from scipy.ndimage import imread
 from scipy.stats import multivariate_normal as mvn
 import matplotlib.pyplot as plt
-from data import getImages
-from vis import visualizeGt
-import tensorflow as tf
+import data
+import util
 import pdb
 
+#Parameters
 inputList = "data/data.txt"
 gtList = "data/gt.txt"
 clusterInName = "data/kmeans_cluster.npy"
-
-np_cluster_means = np.load(clusterInName)
-
 #y by x
 patchSize = (5, 5)
-numIterations = 2
+#No EM, just one pass through is enough
+numIterations = 1
 
-(trainData, trainGt, testData, testGt) = getImages(inputList, gtList)
+#Load clusters from kmeans
+np_cluster_means = np.load(clusterInName)
+
+#Get data
+(trainData, trainGt, testData, testGt) = data.getImages(inputList, gtList)
 (numTrain, ny, nx, drop) = trainGt.shape
 trainData = np.concatenate((trainData, testData), axis=0)
 (numTest, ny, nx, drop) = testGt.shape
 
 numTotal = numTrain + numTest
 
+#Make test data all distractor class
 unsupGtData = np.zeros((numTest, ny, nx, 5))
 unsupGtData[:, :, :, 4] = 1
 trainGt = np.concatenate((trainGt, unsupGtData), axis=0)
 
-##Use only first image for now
-#trainData = trainData[0, :, :]
-#trainData = trainData[np.newaxis, :, :]
-#trainGt = trainGt[0, :, :, :]
-#trainGt = trainGt[np.newaxis, :, :, :]
-
-#Use tensorflow to get training samples from image
-#Build tensorflow graph
-sess = tf.InteractiveSession()
-tf_xImage = tf.placeholder(tf.float64, shape=[None, ny, nx, 1])
-
-#Extract patches from image
-tf_xData = tf.extract_image_patches(tf_xImage, [1, patchSize[0], patchSize[1], 1], [1, 1, 1, 1], [1, 1, 1, 1], "SAME")
-#Linearize both data and gt in batch, x, y dimension
-tf_xData = tf.reshape(tf_xData, [-1, patchSize[0]*patchSize[1]])
+#Get data
+xData = util.tfExtractPatches(trainData, patchSize)
+gtData = np.reshape(trainGt, [-1, 5])
 
 #Initialize clusters
 #clusterMeans is [numClusters, numFeatures]
@@ -55,17 +45,11 @@ for k in range(4):
 #clusterPrior is [numClusters]
 clusterPrior = np.array([.25, .25, .25, .25]).astype(np.float64)
 
-#Get data patches
-xData = sess.run(tf_xData, feed_dict={tf_xImage: trainData[:, :, :, np.newaxis]})
-gtData = np.reshape(trainGt, [-1, 5])
-
 #Grab supervised data
 posIdxs = np.nonzero(gtData[:, 4] == 0)
 sup_gtData = gtData[posIdxs][:, :-1] #Drop distractor class
 sup_xData = xData[posIdxs]
 (numSup, drop) = sup_xData.shape
-
-(numTotal, drop) = xData.shape
 
 #Run EM
 for iteration in range(numIterations):
@@ -100,25 +84,15 @@ for iteration in range(numIterations):
     clusterStds = new_clusterStds
     clusterPrior = new_clusterPrior
 
+#Visualize
 resp_argmax = np.argmax(resp, axis=1)
 resp_onehot = np.zeros(resp.shape)
 resp_onehot[np.arange(len(resp_argmax)), resp_argmax] = 1
-
 estImage = np.reshape(resp_onehot, [numTotal, ny, nx, 4])
 
 plt.figure()
-visualizeGt(estImage[-1, :, :, :], "estImage")
-
+util.visualizeGt(estImage[-1, :, :, :], "estImage")
 plt.figure()
-visualizeGt(testGt[-1, :, :, :4], "gtImage")
+util.visualizeGt(testGt[-1, :, :, :4], "gtImage")
 
 plt.show()
-
-pdb.set_trace()
-
-
-
-
-
-
-

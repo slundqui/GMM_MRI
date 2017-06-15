@@ -1,10 +1,8 @@
 import numpy as np
-from scipy.ndimage import imread
 from scipy.stats import multivariate_normal as mvn
 import matplotlib.pyplot as plt
-from data import getImages
-from vis import visualizeGt
-import tensorflow as tf
+import data
+import util
 import pdb
 
 inputList = "data/data.txt"
@@ -17,7 +15,7 @@ np_cluster_means = np.load(clusterInName)
 patchSize = (5, 5)
 numIterations = 50
 
-(trainData, trainGt, testData, testGt) = getImages(inputList, gtList)
+(trainData, trainGt, testData, testGt) = data.getImages(inputList, gtList)
 (numTrain, ny, nx, drop) = trainGt.shape
 
 trainData = np.concatenate((trainData, testData), axis=0)
@@ -30,15 +28,9 @@ unsupGtData = np.zeros((numTest, ny, nx, 5))
 unsupGtData[:, :, :, 4] = 1
 trainGt = np.concatenate((trainGt, unsupGtData), axis=0)
 
-#Use tensorflow to get training samples from image
-#Build tensorflow graph
-sess = tf.InteractiveSession()
-tf_xImage = tf.placeholder(tf.float64, shape=[None, ny, nx, 1])
-
-#Extract patches from image
-tf_xData = tf.extract_image_patches(tf_xImage, [1, patchSize[0], patchSize[1], 1], [1, 1, 1, 1], [1, 1, 1, 1], "SAME")
-#Linearize both data and gt in batch, x, y dimension
-tf_xData = tf.reshape(tf_xData, [-1, patchSize[0]*patchSize[1]])
+#Get data patches
+xData = util.tfExtractPatches(trainData, patchSize)
+gtData = np.reshape(trainGt, [-1, 5])
 
 #Initialize clusters
 #clusterMeans is [numClusters, numFeatures]
@@ -50,10 +42,6 @@ for k in range(4):
     clusterStds[k] = np.diag(np.abs(-(clusterMeans[k]*clusterMeans[k].transpose())))
 #clusterPrior is [numClusters]
 clusterPrior = np.array([.25, .25, .25, .25]).astype(np.float64)
-
-#Get data patches
-xData = sess.run(tf_xData, feed_dict={tf_xImage: trainData[:, :, :, np.newaxis]})
-gtData = np.reshape(trainGt, [-1, 5])
 
 #Grab supervised data
 posIdxs = np.nonzero(gtData[:, 4] == 0)
@@ -124,16 +112,16 @@ for iteration in range(numIterations):
 all_mvn_data = np.transpose(np.array([mvn.pdf(xData, clusterMeans[k], clusterStds[k]) for k in range(4)]))
 all_respNum = clusterPrior[np.newaxis, :] * all_mvn_data
 all_respDen = np.sum(all_respNum, axis=1)
-
 #resp is [numData, numClusters]
 all_resp = all_respNum/all_respDen[:, np.newaxis]
 
+#Visualize
 resp_argmax = np.argmax(all_resp, axis=1)
 resp_onehot = np.zeros(all_resp.shape)
 resp_onehot[np.arange(len(resp_argmax)), resp_argmax] = 1
-
 estImage = np.reshape(resp_onehot, [numTotal, ny, nx, 4])
 
+#Calculate accuracy
 estTestImg = estImage[7:]
 testGtPosIdx = np.nonzero(testGt[:, :, :, 4] == 0)
 posEst = estTestImg[testGtPosIdx]
@@ -142,18 +130,12 @@ accuracy = np.mean(np.equal(posEst, posGt).astype(np.float32))
 print("Final accurcy:", accuracy)
 
 plt.figure()
-visualizeGt(estImage[-1, :, :, :], "estImage")
+util.visualizeGt(estImage[-1, :, :, :], "estImage")
 
 plt.figure()
-visualizeGt(testGt[-1, :, :, :4], "gtImage")
+util.visualizeGt(testGt[-1, :, :, :4], "gtImage")
 
 plt.show()
 
 pdb.set_trace()
-
-
-
-
-
-
 

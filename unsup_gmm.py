@@ -1,52 +1,41 @@
 import numpy as np
-from scipy.ndimage import imread
 from scipy.stats import multivariate_normal as mvn
 import matplotlib.pyplot as plt
-from data import getImages
-from vis import visualizeGt
-import tensorflow as tf
+import data
+import util
 import pdb
 
+#Parameters
 inputList = "data/data.txt"
 gtList = "data/gt.txt"
 clusterInName = "data/kmeans_cluster.npy"
-
-np_cluster_means = np.load(clusterInName)
-
 #y by x
 patchSize = (5, 5)
 numIterations = 50
 
-(trainData, trainGt, testData, testGt) = getImages(inputList, gtList)
+#Load clusters from kmeans
+np_cluster_means = np.load(clusterInName)
+
+#Get data
+(trainData, trainGt, testData, testGt) = data.getImages(inputList, gtList)
 (numTrain, ny, nx, drop) = trainGt.shape
 
 #Run on all avaliable data
 trainData = np.concatenate((trainData, testData), axis=0)
 (numTotal, drop, drop) = trainData.shape
 
-#Use tensorflow to get training samples from image
-#Build tensorflow graph
-sess = tf.InteractiveSession()
-tf_xImage = tf.placeholder(tf.float64, shape=[None, ny, nx, 1])
-
-#Extract patches from image
-tf_xData = tf.extract_image_patches(tf_xImage, [1, patchSize[0], patchSize[1], 1], [1, 1, 1, 1], [1, 1, 1, 1], "SAME")
-#Linearize both data and gt in batch, x, y dimension
-tf_xData = tf.reshape(tf_xData, [-1, patchSize[0]*patchSize[1]])
+#Extract patches
+xData = util.tfExtractPatches(trainData, patchSize)
 
 #Initialize clusters
 #clusterMeans is [numClusters, numFeatures]
 clusterMeans = np_cluster_means.astype(np.float64)
 #clusterStds is [numClusters, numFeatures, numFeatures]
-#clusterStds = np.tile(np.eye(25), [4, 1, 1]).astype(np.float64)
 clusterStds = np.zeros((4, 25, 25))
 for k in range(4):
     clusterStds[k] = np.diag(np.abs(-(clusterMeans[k]*clusterMeans[k].transpose())))
 #clusterPrior is [numClusters]
 clusterPrior = np.array([.25, .25, .25, .25]).astype(np.float64)
-
-#Get data patches
-xData = sess.run(tf_xData, feed_dict={tf_xImage: trainData[:, :, :, np.newaxis]})
 
 #Run EM
 for iteration in range(numIterations):
@@ -79,23 +68,16 @@ for iteration in range(numIterations):
     clusterStds = new_clusterStds
     clusterPrior = new_clusterPrior
 
+#Visualize
 resp_argmax = np.argmax(resp, axis=1)
 resp_onehot = np.zeros(resp.shape)
 resp_onehot[np.arange(len(resp_argmax)), resp_argmax] = 1
-
 estImage = np.reshape(resp_onehot, [numTotal, ny, nx, 4])
 
 plt.figure()
-visualizeGt(estImage[-1, :, :, :], "estImage")
-
+util.visualizeGt(estImage[-1, :, :, :], "estImage")
 plt.figure()
-visualizeGt(testGt[-1, :, :, :4], "gtImage")
+util.visualizeGt(testGt[-1, :, :, :4], "gtImage")
 
 plt.show()
-
-
-
-
-
-
 
