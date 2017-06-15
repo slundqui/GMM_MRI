@@ -14,9 +14,16 @@ clusterOutName = "data/kmeans_cluster.npy"
 patchSize = (5, 5)
 
 (trainData, trainGt, testData, testGt) = getImages(inputList, gtList)
-(numTrain, ny, nx, drop) = trainGt.shape
 k = 4
 
+#Run on all avaliable data
+trainData = np.concatenate((trainData, testData), axis=0)
+(numTotal, ny, nx) = trainData.shape
+
+#showImg = trainData[-1, :, :, np.newaxis]
+#showImg = np.tile(showImg, [1, 1, 3])
+#plt.imshow(showImg)
+#plt.show()
 
 #Build tensorflow graph
 sess = tf.InteractiveSession()
@@ -90,12 +97,12 @@ np.save(clusterOutName, np_clusters)
 
 #Visualize
 plt.figure()
-visualizeGt(trainGt[0, :, :, :-1], "gtImage")
+visualizeGt(testGt[-1, :, :, :-1], "gtImage")
 
 estImage = sess.run(full_responsibility, feed_dict=feed_dict)
-estImage = np.reshape(estImage, [numTrain, ny, nx, k])
+estImage = np.reshape(estImage, [numTotal, ny, nx, k])
 plt.figure()
-visualizeGt(estImage[0, :, :, :], "estImage")
+visualizeGt(estImage[-1, :, :, :], "estImage")
 
 plt.show()
 

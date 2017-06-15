@@ -15,16 +15,14 @@ np_cluster_means = np.load(clusterInName)
 
 #y by x
 patchSize = (5, 5)
-numIterations = 25
+numIterations = 50
 
 (trainData, trainGt, testData, testGt) = getImages(inputList, gtList)
 (numTrain, ny, nx, drop) = trainGt.shape
 
-#Use only first image for now
-trainData = trainData[0, :, :]
-trainData = trainData[np.newaxis, :, :]
-trainGt = trainGt[0, :, :, :]
-trainGt = trainGt[np.newaxis, :, :, :]
+#Run on all avaliable data
+trainData = np.concatenate((trainData, testData), axis=0)
+(numTotal, drop, drop) = trainData.shape
 
 #Use tensorflow to get training samples from image
 #Build tensorflow graph
@@ -49,7 +47,6 @@ clusterPrior = np.array([.25, .25, .25, .25]).astype(np.float64)
 
 #Get data patches
 xData = sess.run(tf_xData, feed_dict={tf_xImage: trainData[:, :, :, np.newaxis]})
-gtData = np.reshape(trainGt, [-1, 5])
 
 #Run EM
 for iteration in range(numIterations):
@@ -66,16 +63,15 @@ for iteration in range(numIterations):
     #M step
     new_clusterPrior = np.mean(resp, axis=0)
     new_clusterMeans = np.sum(resp[:, :, np.newaxis] * xData[:, np.newaxis, :], axis=0) / respNorm[:, np.newaxis]
-    xData_xDataT = xData[:, :, tf.newaxis] * xData[:, tf.newaxis, :]
-    mu_muT = new_clusterMeans[:, :, tf.newaxis] * new_clusterMeans[:, tf.newaxis, :]
-    new_clusterStds = np.sum(resp[:, :, np.newaxis, np.newaxis] * xData_xDataT[:, np.newaxis, :, :], axis=0) / respNorm[:, np.newaxis, np.newaxis]
-    new_clusterStds = new_clusterStds - mu_muT
+    cData = xData[:, np.newaxis, :] - new_clusterMeans[np.newaxis, :, :]
+    cData_cDataT = cData[:, :, :, np.newaxis] * cData[:, :, np.newaxis, :]
+    new_clusterStds = np.sum(resp[:, :, np.newaxis, np.newaxis] * cData_cDataT, axis=0) / respNorm[:, np.newaxis, np.newaxis]
 
     #Calculate LL
-    prior_ll = np.sum(resp * np.log(new_clusterPrior[np.newaxis, :]))
+    prior_ll = np.sum(resp * np.log(new_clusterPrior[np.newaxis, :]), axis=1)
     mvn_logdata = np.transpose(np.array([mvn.logpdf(xData, new_clusterMeans[k], new_clusterStds[k]) for k in range(4)]))
-    param_ll = np.sum(resp * mvn_logdata)
-    ll = prior_ll + param_ll
+    param_ll = np.sum(resp * mvn_logdata, axis=1)
+    ll = np.mean(prior_ll + param_ll)
 
     print("Iteration", iteration, "  ll:", ll)
     #Set new params
@@ -87,12 +83,13 @@ resp_argmax = np.argmax(resp, axis=1)
 resp_onehot = np.zeros(resp.shape)
 resp_onehot[np.arange(len(resp_argmax)), resp_argmax] = 1
 
-estImage = np.reshape(resp_onehot, [1, ny, nx, 4])
-plt.figure()
-visualizeGt(estImage[0, :, :, :], "estImage")
+estImage = np.reshape(resp_onehot, [numTotal, ny, nx, 4])
 
 plt.figure()
-visualizeGt(trainGt[0, :, :, :4], "gtImage")
+visualizeGt(estImage[-1, :, :, :], "estImage")
+
+plt.figure()
+visualizeGt(testGt[-1, :, :, :4], "gtImage")
 
 plt.show()
 
